@@ -155,18 +155,59 @@
 
     <section class="panel export" id="exportPanel">
       <h2>Export annotated dataset</h2>
-      <div class="row">
-        <label class="grow">
-          Output directory (optional)
-          <input id="outputDir" type="text" placeholder="/tmp/lerobot_annotate_exports/your_dataset" />
-        </label>
-        <label class="checkbox">
-          <input id="copyVideos" type="checkbox" />
-          Copy videos instead of symlink
-        </label>
-        <button id="exportBtn" class="primary">Export</button>
+      
+      <div class="export-section">
+        <h3>Export to local directory</h3>
+        <div class="row">
+          <label class="grow">
+            Output directory (optional)
+            <input id="outputDir" type="text" placeholder="/tmp/lerobot_annotate_exports/your_dataset" />
+          </label>
+          <label class="checkbox">
+            <input id="copyVideos" type="checkbox" />
+            Copy videos instead of symlink
+          </label>
+          <button id="exportBtn" class="primary">Export locally</button>
+        </div>
+        <div class="helper" id="exportStatus"></div>
       </div>
-      <div class="helper" id="exportStatus"></div>
+
+      <div class="export-section">
+        <h3>Push to Hugging Face Hub</h3>
+        <div class="row">
+          <label class="grow">
+            HF Token
+            <input id="hfToken" type="password" placeholder="hf_xxxxxxxxxxxx" />
+          </label>
+          <label>
+            <a href="https://huggingface.co/settings/tokens" target="_blank" class="link-small">Get token →</a>
+          </label>
+        </div>
+        <div class="row">
+          <label class="checkbox">
+            <input id="pushInPlace" type="checkbox" checked />
+            Push to original repo (update in place)
+          </label>
+        </div>
+        <div class="row" id="newRepoRow">
+          <label class="grow">
+            New repo ID
+            <input id="newRepoId" type="text" placeholder="your-username/new-dataset-name" />
+          </label>
+          <label class="checkbox">
+            <input id="privateRepo" type="checkbox" />
+            Private repository
+          </label>
+        </div>
+        <div class="row">
+          <label class="grow">
+            Commit message
+            <input id="commitMessage" type="text" placeholder="Add annotations" value="Add annotations from LeRobot Annotate" />
+          </label>
+          <button id="pushHubBtn" class="primary">Push to Hub</button>
+        </div>
+        <div class="helper" id="pushHubStatus"></div>
+      </div>
     </section>
   </div>
 

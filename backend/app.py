@@ -15,7 +15,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from huggingface_hub import hf_hub_download, snapshot_download
+from huggingface_hub import HfApi, hf_hub_download, snapshot_download
 from pydantic import BaseModel
 
 APP_ROOT = Path(__file__).resolve().parent
@@ -639,6 +639,76 @@ def export_dataset(payload: dict[str, Any]) -> JSONResponse:
     copy_videos = bool(payload.get("copy_videos", False))
     result = manager.export_dataset(output_dir=output_dir, copy_videos=copy_videos)
     return JSONResponse(result)
+
+
+class PushToHubRequest(BaseModel):
+    hf_token: str
+    push_in_place: bool = True
+    new_repo_id: str | None = None
+    private: bool = False
+    commit_message: str = "Add annotations from LeRobot Annotate"
+
+
+@app.post("/api/push_to_hub")
+def push_to_hub(payload: PushToHubRequest) -> JSONResponse:
+    """Push the annotated dataset to Hugging Face Hub.
+    
+    Can either update the original repo in place, or push to a new repo.
+    """
+    if manager.dataset_root is None or manager.info is None:
+        raise HTTPException(status_code=400, detail="Dataset not loaded")
+    
+    if manager.source != "hf":
+        raise HTTPException(status_code=400, detail="Can only push to Hub for datasets loaded from Hub")
+    
+    # First, export the dataset locally
+    export_result = manager.export_dataset(copy_videos=True)
+    export_dir = Path(export_result["output_dir"])
+    
+    # Determine target repo
+    if payload.push_in_place:
+        if not manager.repo_id:
+            raise HTTPException(status_code=400, detail="No original repo ID found")
+        target_repo = manager.repo_id
+    else:
+        if not payload.new_repo_id:
+            raise HTTPException(status_code=400, detail="New repo ID is required when not pushing in place")
+        target_repo = payload.new_repo_id
+    
+    try:
+        api = HfApi(token=payload.hf_token)
+        
+        # Create repo if pushing to new location
+        if not payload.push_in_place:
+            try:
+                api.create_repo(
+                    repo_id=target_repo,
+                    repo_type="dataset",
+                    private=payload.private,
+                    exist_ok=True,
+                )
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Failed to create repo: {str(e)}")
+        
+        # Upload the entire exported directory
+        api.upload_folder(
+            folder_path=str(export_dir),
+            repo_id=target_repo,
+            repo_type="dataset",
+            commit_message=payload.commit_message,
+        )
+        
+        return JSONResponse({
+            "ok": True,
+            "repo_id": target_repo,
+            "url": f"https://huggingface.co/datasets/{target_repo}",
+            "message": f"Successfully pushed to {target_repo}",
+        })
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to push to Hub: {str(e)}")
 
 
 @app.get("/api/debug/columns")

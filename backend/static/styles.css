@@ -296,6 +296,48 @@ video {
   flex: 1;
 }
 
+.export-section {
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.export-section:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.export-section h3 {
+  margin: 0 0 16px;
+  font-size: 1rem;
+  color: var(--accent-2);
+}
+
+.link-small {
+  color: var(--accent-2);
+  text-decoration: none;
+  font-size: 0.8rem;
+}
+
+.link-small:hover {
+  text-decoration: underline;
+}
+
+.helper a {
+  color: var(--accent-2);
+  text-decoration: none;
+}
+
+.helper a:hover {
+  text-decoration: underline;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 @media (max-width: 1024px) {
   .workspace {
     grid-template-columns: 1fr;

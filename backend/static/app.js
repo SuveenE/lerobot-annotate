@@ -43,6 +43,16 @@ const outputDir = document.getElementById('outputDir');
 const copyVideos = document.getElementById('copyVideos');
 const exportStatus = document.getElementById('exportStatus');
 
+// Push to Hub elements
+const hfToken = document.getElementById('hfToken');
+const pushInPlace = document.getElementById('pushInPlace');
+const newRepoRow = document.getElementById('newRepoRow');
+const newRepoId = document.getElementById('newRepoId');
+const privateRepo = document.getElementById('privateRepo');
+const commitMessage = document.getElementById('commitMessage');
+const pushHubBtn = document.getElementById('pushHubBtn');
+const pushHubStatus = document.getElementById('pushHubStatus');
+
 const tabs = document.querySelectorAll('.tab');
 const tabPanels = document.querySelectorAll('.tab-panel');
 
@@ -459,6 +469,65 @@ exportBtn.addEventListener('click', async () => {
     exportStatus.textContent = `Exported to ${data.output_dir} (subtasks: ${data.subtasks}, high-level: ${data.tasks_high_level})`;
   } else {
     exportStatus.textContent = data.detail || 'Export failed';
+  }
+});
+
+// Toggle new repo input visibility based on push in place checkbox
+pushInPlace.addEventListener('change', () => {
+  newRepoRow.style.display = pushInPlace.checked ? 'none' : 'flex';
+});
+
+// Initialize visibility
+newRepoRow.style.display = pushInPlace.checked ? 'none' : 'flex';
+
+// Push to Hub handler
+pushHubBtn.addEventListener('click', async () => {
+  const token = hfToken.value.trim();
+  if (!token) {
+    pushHubStatus.textContent = 'Please enter your Hugging Face token';
+    pushHubStatus.style.color = '#f97316';
+    return;
+  }
+
+  if (!pushInPlace.checked && !newRepoId.value.trim()) {
+    pushHubStatus.textContent = 'Please enter a new repo ID or check "Push to original repo"';
+    pushHubStatus.style.color = '#f97316';
+    return;
+  }
+
+  pushHubStatus.textContent = 'Pushing to Hub... This may take a while for large datasets.';
+  pushHubStatus.style.color = '#94a3b8';
+  pushHubBtn.disabled = true;
+
+  try {
+    const payload = {
+      hf_token: token,
+      push_in_place: pushInPlace.checked,
+      new_repo_id: pushInPlace.checked ? null : newRepoId.value.trim(),
+      private: privateRepo.checked,
+      commit_message: commitMessage.value.trim() || 'Add annotations from LeRobot Annotate',
+    };
+
+    const res = await fetch('/api/push_to_hub', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+    
+    if (res.ok) {
+      pushHubStatus.innerHTML = `✓ ${data.message} - <a href="${data.url}" target="_blank">View on Hub →</a>`;
+      pushHubStatus.style.color = '#22c55e';
+    } else {
+      pushHubStatus.textContent = data.detail || 'Push failed';
+      pushHubStatus.style.color = '#f97316';
+    }
+  } catch (err) {
+    pushHubStatus.textContent = `Error: ${err.message}`;
+    pushHubStatus.style.color = '#f97316';
+  } finally {
+    pushHubBtn.disabled = false;
   }
 });
 
