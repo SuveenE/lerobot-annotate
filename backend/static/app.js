@@ -1,5 +1,127 @@
 console.log('[App] Script starting...');
 
+
+function showPushStatus(type, message, url = null) {
+  console.log('[Push to Hub] Showing status:', type, message);
+  
+  const statusEl = document.getElementById('pushHubStatus');
+  if (!statusEl) {
+    console.error('[Push to Hub] Status element not found');
+    alert(`${type}: ${message}`);
+    return;
+  }
+  
+  statusEl.className = `helper status-${type}`;
+  
+  if (type === 'loading') {
+    statusEl.innerHTML = `<span class="spinner"></span> ${message}`;
+  } else if (type === 'success') {
+    statusEl.innerHTML = `
+      <div class="status-box status-success">
+        <span class="status-icon">✓</span>
+        <div class="status-content">
+          <strong>Success!</strong>
+          <p>${message}</p>
+          ${url ? `<a href="${url}" target="_blank" class="status-link">View on Hugging Face Hub →</a>` : ''}
+        </div>
+      </div>
+    `;
+  } else if (type === 'error') {
+    statusEl.innerHTML = `
+      <div class="status-box status-error">
+        <span class="status-icon">✗</span>
+        <div class="status-content">
+          <strong>Error</strong>
+          <p>${message}</p>
+        </div>
+      </div>
+    `;
+  }
+}
+
+async function handlePushToHub() {
+  console.log('[Push to Hub] handlePushToHub called');
+  
+  const tokenEl = document.getElementById('hfToken');
+  const statusEl = document.getElementById('pushHubStatus');
+  const btnEl = document.getElementById('pushHubBtn');
+  const inPlaceEl = document.getElementById('pushInPlace');
+  const newRepoEl = document.getElementById('newRepoId');
+  const privateEl = document.getElementById('privateRepo');
+  const msgEl = document.getElementById('commitMessage');
+  
+  if (!tokenEl || !statusEl) {
+    console.error('[Push to Hub] Missing DOM elements');
+    alert('Error: Missing form elements. Please refresh the page.');
+    return;
+  }
+  
+  const token = tokenEl.value.trim();
+  console.log('[Push to Hub] Token provided:', token ? 'Yes (hidden)' : 'No');
+  
+  if (!token) {
+    showPushStatus('error', 'Please enter your Hugging Face token');
+    return;
+  }
+
+  const pushInPlaceChecked = inPlaceEl ? inPlaceEl.checked : true;
+  const newRepoIdValue = newRepoEl ? newRepoEl.value.trim() : '';
+  
+  if (!pushInPlaceChecked && !newRepoIdValue) {
+    showPushStatus('error', 'Please enter a new repo ID or check "Push to original repo"');
+    return;
+  }
+
+  // Show loading state
+  console.log('[Push to Hub] Starting push...');
+  showPushStatus('loading', 'Pushing to Hub... This may take a while for large datasets.');
+  if (btnEl) {
+    btnEl.disabled = true;
+    btnEl.innerHTML = '<span class="spinner"></span> Pushing...';
+  }
+
+  try {
+    const payload = {
+      hf_token: token,
+      push_in_place: pushInPlaceChecked,
+      new_repo_id: pushInPlaceChecked ? null : newRepoIdValue,
+      private: privateEl ? privateEl.checked : false,
+      commit_message: (msgEl ? msgEl.value.trim() : '') || 'Add annotations from LeRobot Annotate',
+    };
+    
+    console.log('[Push to Hub] Sending request with payload:', { ...payload, hf_token: '[HIDDEN]' });
+
+    const res = await fetch('/api/push_to_hub', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    console.log('[Push to Hub] Response status:', res.status);
+    const data = await res.json();
+    console.log('[Push to Hub] Response data:', data);
+    
+    if (res.ok) {
+      console.log('[Push to Hub] Success!');
+      showPushStatus('success', `${data.message}`, data.url);
+    } else {
+      console.error('[Push to Hub] Failed:', data.detail);
+      showPushStatus('error', data.detail || 'Push failed. Please check your token and try again.');
+    }
+  } catch (err) {
+    console.error('[Push to Hub] Error:', err);
+    showPushStatus('error', `Network error: ${err.message}. Please check your connection and try again.`);
+  } finally {
+    if (btnEl) {
+      btnEl.disabled = false;
+      btnEl.textContent = 'Push to Hub';
+    }
+  }
+}
+
+console.log('[App] handlePushToHub function defined');
+// ============================================
+
 const statusEl = document.getElementById('status');
 const connectForm = document.getElementById('connectForm');
 const sourceSelect = document.getElementById('sourceSelect');
@@ -489,131 +611,6 @@ if (pushInPlace && newRepoRow) {
   // Initialize visibility
   newRepoRow.style.display = pushInPlace.checked ? 'none' : 'flex';
 }
-
-// Push to Hub handler - defined as global function for onclick
-async function handlePushToHub() {
-  console.log('[Push to Hub] handlePushToHub called');
-  
-  const tokenEl = document.getElementById('hfToken');
-  const statusEl = document.getElementById('pushHubStatus');
-  const btnEl = document.getElementById('pushHubBtn');
-  const inPlaceEl = document.getElementById('pushInPlace');
-  const newRepoEl = document.getElementById('newRepoId');
-  const privateEl = document.getElementById('privateRepo');
-  const msgEl = document.getElementById('commitMessage');
-  
-  if (!tokenEl || !statusEl) {
-    console.error('[Push to Hub] Missing DOM elements');
-    alert('Error: Missing form elements. Please refresh the page.');
-    return;
-  }
-  
-  const token = tokenEl.value.trim();
-  console.log('[Push to Hub] Token provided:', token ? 'Yes (hidden)' : 'No');
-  
-  if (!token) {
-    showPushStatus('error', 'Please enter your Hugging Face token');
-    return;
-  }
-
-  const pushInPlaceChecked = inPlaceEl ? inPlaceEl.checked : true;
-  const newRepoIdValue = newRepoEl ? newRepoEl.value.trim() : '';
-  
-  if (!pushInPlaceChecked && !newRepoIdValue) {
-    showPushStatus('error', 'Please enter a new repo ID or check "Push to original repo"');
-    return;
-  }
-
-  // Show loading state
-  console.log('[Push to Hub] Starting push...');
-  showPushStatus('loading', 'Pushing to Hub... This may take a while for large datasets.');
-  if (btnEl) {
-    btnEl.disabled = true;
-    btnEl.innerHTML = '<span class="spinner"></span> Pushing...';
-  }
-
-  try {
-    const payload = {
-      hf_token: token,
-      push_in_place: pushInPlaceChecked,
-      new_repo_id: pushInPlaceChecked ? null : newRepoIdValue,
-      private: privateEl ? privateEl.checked : false,
-      commit_message: (msgEl ? msgEl.value.trim() : '') || 'Add annotations from LeRobot Annotate',
-    };
-    
-    console.log('[Push to Hub] Sending request with payload:', { ...payload, hf_token: '[HIDDEN]' });
-
-    const res = await fetch('/api/push_to_hub', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    console.log('[Push to Hub] Response status:', res.status);
-    const data = await res.json();
-    console.log('[Push to Hub] Response data:', data);
-    
-    if (res.ok) {
-      console.log('[Push to Hub] Success!');
-      showPushStatus('success', `${data.message}`, data.url);
-    } else {
-      console.error('[Push to Hub] Failed:', data.detail);
-      showPushStatus('error', data.detail || 'Push failed. Please check your token and try again.');
-    }
-  } catch (err) {
-    console.error('[Push to Hub] Error:', err);
-    showPushStatus('error', `Network error: ${err.message}. Please check your connection and try again.`);
-  } finally {
-    if (btnEl) {
-      btnEl.disabled = false;
-      btnEl.textContent = 'Push to Hub';
-    }
-  }
-}
-
-// Make it globally available
-window.handlePushToHub = handlePushToHub;
-
-function showPushStatus(type, message, url = null) {
-  console.log('[Push to Hub] Showing status:', type, message);
-  
-  const statusEl = document.getElementById('pushHubStatus');
-  if (!statusEl) {
-    console.error('[Push to Hub] Status element not found');
-    alert(`${type}: ${message}`);
-    return;
-  }
-  
-  statusEl.className = `helper status-${type}`;
-  
-  if (type === 'loading') {
-    statusEl.innerHTML = `<span class="spinner"></span> ${message}`;
-  } else if (type === 'success') {
-    statusEl.innerHTML = `
-      <div class="status-box status-success">
-        <span class="status-icon">✓</span>
-        <div class="status-content">
-          <strong>Success!</strong>
-          <p>${message}</p>
-          ${url ? `<a href="${url}" target="_blank" class="status-link">View on Hugging Face Hub →</a>` : ''}
-        </div>
-      </div>
-    `;
-  } else if (type === 'error') {
-    statusEl.innerHTML = `
-      <div class="status-box status-error">
-        <span class="status-icon">✗</span>
-        <div class="status-content">
-          <strong>Error</strong>
-          <p>${message}</p>
-        </div>
-      </div>
-    `;
-  }
-}
-
-// Make showPushStatus globally available too
-window.showPushStatus = showPushStatus;
 
 workspace.style.display = 'none';
 
