@@ -1,7 +1,9 @@
+import hashlib
 import json
 import os
 import re
 import shutil
+import subprocess
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -20,6 +22,87 @@ APP_ROOT = Path(__file__).resolve().parent
 STATIC_DIR = APP_ROOT / "static"
 CACHE_ROOT = Path(os.environ.get("LEROBOT_ANNOTATE_CACHE", "/tmp/lerobot_annotate_cache"))
 EXPORT_ROOT = Path(os.environ.get("LEROBOT_ANNOTATE_EXPORT", "/tmp/lerobot_annotate_exports"))
+TRIMMED_VIDEO_CACHE = CACHE_ROOT / "trimmed_videos"
+
+
+def trim_video_with_ffmpeg(input_path: Path, output_path: Path, start_time: float, end_time: float) -> bool:
+    """Trim a video using FFmpeg to extract only the specified time range.
+    
+    Args:
+        input_path: Path to the source video file
+        output_path: Path where the trimmed video should be saved
+        start_time: Start time in seconds
+        end_time: End time in seconds
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    duration = end_time - start_time
+    if duration <= 0:
+        return False
+    
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    try:
+        # Use FFmpeg to trim the video
+        # -ss before -i for fast seeking, -t for duration
+        # -c copy for fast copying without re-encoding (if possible)
+        # -avoid_negative_ts make_zero to handle timestamp issues
+        cmd = [
+            "ffmpeg",
+            "-y",  # Overwrite output file if exists
+            "-ss", str(start_time),  # Start time (before -i for input seeking)
+            "-i", str(input_path),
+            "-t", str(duration),  # Duration
+            "-c", "copy",  # Copy codecs (fast, no re-encoding)
+            "-avoid_negative_ts", "make_zero",
+            str(output_path),
+        ]
+        
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=300,  # 5 minute timeout
+        )
+        
+        if result.returncode != 0:
+            print(f"FFmpeg error: {result.stderr}")
+            # Try again with re-encoding if copy fails
+            cmd_reencode = [
+                "ffmpeg",
+                "-y",
+                "-ss", str(start_time),
+                "-i", str(input_path),
+                "-t", str(duration),
+                "-c:v", "libx264",
+                "-preset", "ultrafast",
+                "-c:a", "aac",
+                str(output_path),
+            ]
+            result = subprocess.run(cmd_reencode, capture_output=True, text=True, timeout=600)
+            if result.returncode != 0:
+                print(f"FFmpeg re-encode error: {result.stderr}")
+                return False
+        
+        return output_path.exists()
+    except subprocess.TimeoutExpired:
+        print("FFmpeg timed out")
+        return False
+    except FileNotFoundError:
+        print("FFmpeg not found - please install FFmpeg")
+        return False
+    except Exception as e:
+        print(f"Error trimming video: {e}")
+        return False
+
+
+def get_trimmed_video_cache_path(video_path: Path, episode_index: int, start_time: float, end_time: float) -> Path:
+    """Generate a unique cache path for a trimmed video segment."""
+    # Create a hash based on the source video path and time range
+    key = f"{video_path}_{episode_index}_{start_time:.3f}_{end_time:.3f}"
+    hash_key = hashlib.md5(key.encode()).hexdigest()[:16]
+    return TRIMMED_VIDEO_CACHE / f"ep{episode_index}_{hash_key}.mp4"
 
 
 class DatasetLoadRequest(BaseModel):
@@ -607,7 +690,45 @@ def get_episode_video_timing(episode_index: int, video_key: str | None = None) -
 
 @app.get("/api/video/{episode_index}")
 def stream_video(episode_index: int, request: Request, video_key: str | None = None) -> Response:
-    path = manager.get_episode_video_path(episode_index, video_key=video_key)
+    """Stream video for a specific episode.
+    
+    For concatenated videos (where multiple episodes share one file), this endpoint
+    will trim the video to only include the relevant episode portion using FFmpeg.
+    """
+    video_key = video_key or manager.video_key
+    original_path = manager.get_episode_video_path(episode_index, video_key=video_key)
+    
+    # Get the video timing for this episode
+    fps = float(manager.info.get("fps", 30)) if manager.info else 30.0
+    video_offsets = manager._calculate_video_offsets(video_key, fps) if video_key else {}
+    video_info = video_offsets.get(episode_index, {"video_start_time": 0.0, "video_end_time": 0.0})
+    
+    start_time = video_info["video_start_time"]
+    end_time = video_info["video_end_time"]
+    
+    # Determine if we need to trim the video
+    # If start_time > 0, it means this episode is part of a concatenated video
+    needs_trimming = start_time > 0.1 or (end_time > 0 and end_time < get_video_duration(original_path) - 0.5)
+    
+    if needs_trimming and end_time > start_time:
+        # Check if we have a cached trimmed version
+        cache_path = get_trimmed_video_cache_path(original_path, episode_index, start_time, end_time)
+        
+        if not cache_path.exists():
+            # Trim the video and cache it
+            print(f"Trimming video for episode {episode_index}: {start_time:.2f}s - {end_time:.2f}s")
+            success = trim_video_with_ffmpeg(original_path, cache_path, start_time, end_time)
+            if not success:
+                print(f"Failed to trim video, falling back to full video")
+                # Fall back to full video if trimming fails
+                path = original_path
+            else:
+                path = cache_path
+        else:
+            path = cache_path
+    else:
+        path = original_path
+    
     file_size = path.stat().st_size
     range_header = request.headers.get("range")
 
@@ -637,6 +758,24 @@ def stream_video(episode_index: int, request: Request, video_key: str | None = N
         return StreamingResponse(iterfile(), status_code=206, media_type="video/mp4", headers=headers)
 
     return FileResponse(path, media_type="video/mp4")
+
+
+def get_video_duration(video_path: Path) -> float:
+    """Get the duration of a video file using FFprobe."""
+    try:
+        cmd = [
+            "ffprobe",
+            "-v", "error",
+            "-show_entries", "format=duration",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            str(video_path),
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        if result.returncode == 0:
+            return float(result.stdout.strip())
+    except Exception as e:
+        print(f"Error getting video duration: {e}")
+    return 0.0
 
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
