@@ -291,7 +291,7 @@ video {
 
 .segment-item {
   display: grid;
-  grid-template-columns: 80px 80px 1fr auto;
+  grid-template-columns: 36px 80px 80px 1fr auto;
   gap: 12px;
   align-items: center;
   padding: 10px;

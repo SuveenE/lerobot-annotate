@@ -281,6 +281,25 @@ function renderEpisodes() {
   });
 }
 
+function buildSubtaskIndexMap(annotations) {
+  // Build a mapping from label to subtask_index (same logic as backend)
+  // This creates consistent subtask indices based on alphabetically sorted unique labels
+  const allLabels = new Set();
+  for (const epAnn of Object.values(annotations)) {
+    for (const seg of epAnn.subtasks || []) {
+      if (seg.label) {
+        allLabels.add(seg.label);
+      }
+    }
+  }
+  const sortedLabels = Array.from(allLabels).sort();
+  const subtaskMap = {};
+  sortedLabels.forEach((label, idx) => {
+    subtaskMap[label] = idx;
+  });
+  return subtaskMap;
+}
+
 function renderTimeline() {
   timeline.innerHTML = '';
   if (!state.currentEpisode) return;
@@ -290,11 +309,24 @@ function renderTimeline() {
   const duration = getEpisodeDuration();
   if (!duration || segments.length === 0) return;
 
-  segments.forEach(seg => {
+  // Build subtask index map based on all annotations (consistent with export)
+  const subtaskMap = buildSubtaskIndexMap(state.annotations);
+
+  segments.forEach((seg) => {
     const span = document.createElement('span');
     const width = ((seg.end - seg.start) / duration) * 100;
     span.style.width = `${Math.max(width, 2)}%`;
-    span.title = `${seg.label} (${seg.start}s - ${seg.end}s)`;
+    // Get the actual subtask_index based on label
+    const subtaskIndex = subtaskMap[seg.label] ?? '?';
+    span.title = `subtask_index ${subtaskIndex}: ${seg.label} (${seg.start}s - ${seg.end}s)`;
+    // Add subtask index as text inside the span
+    span.textContent = subtaskIndex;
+    span.style.display = 'flex';
+    span.style.alignItems = 'center';
+    span.style.justifyContent = 'center';
+    span.style.fontSize = '10px';
+    span.style.fontWeight = '600';
+    span.style.color = '#0b0e14';
     timeline.appendChild(span);
   });
 }
@@ -305,9 +337,19 @@ function renderSubtasks() {
   const ann = getEpisodeAnnotations(state.currentEpisode);
   ann.subtasks.sort((a, b) => a.start - b.start);
 
+  // Build subtask index map based on all annotations (consistent with export)
+  const subtaskMap = buildSubtaskIndexMap(state.annotations);
+
   ann.subtasks.forEach((seg, idx) => {
     const row = document.createElement('div');
     row.className = 'segment-item';
+
+    // Add subtask_index badge
+    const indexBadge = document.createElement('span');
+    const subtaskIndex = subtaskMap[seg.label] ?? '?';
+    indexBadge.textContent = subtaskIndex;
+    indexBadge.title = `subtask_index: ${subtaskIndex}`;
+    indexBadge.style.cssText = 'display: flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; background: var(--accent-2); color: #0b0e14; border-radius: 6px; font-weight: 600; font-size: 12px;';
 
     const startInput = document.createElement('input');
     startInput.type = 'number';
@@ -332,6 +374,9 @@ function renderSubtasks() {
     labelInput.value = seg.label;
     labelInput.addEventListener('change', () => {
       seg.label = labelInput.value;
+      // Re-render both to update subtask_index based on new label
+      renderSubtasks();
+      renderTimeline();
     });
 
     const deleteBtn = document.createElement('button');
@@ -343,6 +388,7 @@ function renderSubtasks() {
       renderTimeline();
     });
 
+    row.appendChild(indexBadge);
     row.appendChild(startInput);
     row.appendChild(endInput);
     row.appendChild(labelInput);
