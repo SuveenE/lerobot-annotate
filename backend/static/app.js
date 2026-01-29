@@ -302,7 +302,7 @@ function buildSubtaskIndexMap(annotations) {
 
 function renderTimeline() {
   timeline.innerHTML = '';
-  if (!state.currentEpisode) return;
+  if (state.currentEpisode == null) return;
   const ann = getEpisodeAnnotations(state.currentEpisode);
   const segments = ann.subtasks;
   // Use episode duration (not full video duration) for timeline
@@ -333,7 +333,7 @@ function renderTimeline() {
 
 function renderSubtasks() {
   subtaskList.innerHTML = '';
-  if (!state.currentEpisode) return;
+  if (state.currentEpisode == null) return;
   const ann = getEpisodeAnnotations(state.currentEpisode);
   ann.subtasks.sort((a, b) => a.start - b.start);
 
@@ -400,7 +400,7 @@ function renderSubtasks() {
 
 function renderHighLevels() {
   highLevelList.innerHTML = '';
-  if (!state.currentEpisode) return;
+  if (state.currentEpisode == null) return;
   const ann = getEpisodeAnnotations(state.currentEpisode);
   ann.high_levels.sort((a, b) => a.start - b.start);
 
@@ -507,7 +507,7 @@ async function selectEpisode(epIdx) {
 }
 
 async function saveEpisode() {
-  if (!state.currentEpisode) return;
+  if (state.currentEpisode == null) return;
   const ann = getEpisodeAnnotations(state.currentEpisode);
   const payload = {
     episode_index: state.currentEpisode,
@@ -579,7 +579,7 @@ subtaskSetEnd.addEventListener('click', () => {
 });
 
 addSubtask.addEventListener('click', () => {
-  if (!state.currentEpisode) return;
+  if (state.currentEpisode == null) return;
   const start = Number(subtaskStart.value);
   const end = Number(subtaskEnd.value);
   const label = subtaskLabel.value.trim();
@@ -602,7 +602,7 @@ hlSetEnd.addEventListener('click', () => {
 });
 
 addHighLevel.addEventListener('click', () => {
-  if (!state.currentEpisode) return;
+  if (state.currentEpisode == null) return;
   const start = Number(hlStart.value);
   const end = Number(hlEnd.value);
   const userPrompt = hlUser.value.trim();
@@ -627,7 +627,7 @@ addHighLevel.addEventListener('click', () => {
 
 saveEpisodeBtn.addEventListener('click', () => saveEpisode());
 resetEpisodeBtn.addEventListener('click', () => {
-  if (!state.currentEpisode) return;
+  if (state.currentEpisode == null) return;
   state.annotations[state.currentEpisode] = { subtasks: [], high_levels: [] };
   renderSubtasks();
   renderHighLevels();
