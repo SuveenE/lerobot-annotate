@@ -1,3 +1,13 @@
+---
+title: Subtasks Annotator
+emoji: 📝
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # LeRobot Annotate
 
 A lightweight web UI for annotating LeRobot datasets with subtask segments and high-level dialogue. It works with any LeRobot dataset (local or Hugging Face Hub) and exports updated parquet files ready for training.
