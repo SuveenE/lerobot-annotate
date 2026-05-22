@@ -127,7 +127,6 @@ const episodeList = document.getElementById('episodeList');
 const episodeSearch = document.getElementById('episodeSearch');
 const episodeTitle = document.getElementById('episodeTitle');
 const episodeMeta = document.getElementById('episodeMeta');
-const videoShell = document.getElementById('videoShell');
 const episodeVideo = document.getElementById('episodeVideo');
 const timeline = document.getElementById('timeline');
 
@@ -185,7 +184,6 @@ const state = {
   currentEpisodeData: null, // Store the full episode data including video timing
   annotations: {},
 };
-let videoEditorActive = false;
 
 function setStatus(text, ok = false) {
   statusEl.textContent = text;
@@ -662,7 +660,9 @@ subtaskSetStart.addEventListener('click', setSubtaskStartFromVideo);
 subtaskSetEnd.addEventListener('click', setSubtaskEndFromVideo);
 
 function handleVideoEditorShortcut(event) {
-  if (!videoEditorActive || isEditableTarget(event.target)) return;
+  if (isEditableTarget(event.target) || event.metaKey || event.ctrlKey || event.altKey) return;
+  if (state.currentEpisode == null) return;
+
   const key = event.key.toLowerCase();
   if (key === 's') {
     event.preventDefault();
@@ -674,23 +674,6 @@ function handleVideoEditorShortcut(event) {
     setSubtaskEndFromVideo();
   }
 }
-
-if (videoShell) {
-  videoShell.addEventListener('pointerdown', () => {
-    videoEditorActive = true;
-  });
-  videoShell.addEventListener('focusin', () => {
-    videoEditorActive = true;
-  });
-}
-
-document.addEventListener('pointerdown', (event) => {
-  videoEditorActive = Boolean(videoShell && videoShell.contains(event.target));
-}, true);
-
-document.addEventListener('focusin', (event) => {
-  videoEditorActive = Boolean(videoShell && videoShell.contains(event.target));
-}, true);
 
 document.addEventListener('keydown', handleVideoEditorShortcut, true);
 
