@@ -23,6 +23,7 @@ STATIC_DIR = APP_ROOT / "static"
 CACHE_ROOT = Path(os.environ.get("LEROBOT_ANNOTATE_CACHE", "/tmp/lerobot_annotate_cache"))
 EXPORT_ROOT = Path(os.environ.get("LEROBOT_ANNOTATE_EXPORT", "/tmp/lerobot_annotate_exports"))
 TRIMMED_VIDEO_CACHE = CACHE_ROOT / "trimmed_videos"
+DEFAULT_HF_ORG = os.environ.get("LEROBOT_ANNOTATE_DEFAULT_ORG", "cortexairobot")
 
 
 def get_hf_token() -> str:
@@ -617,6 +618,42 @@ def root() -> HTMLResponse:
     if not index_path.exists():
         return HTMLResponse("<h1>LeRobot Annotate</h1><p>Missing static index.html</p>")
     return HTMLResponse(index_path.read_text())
+
+
+@app.get("/api/hub/orgs")
+def list_hub_orgs() -> JSONResponse:
+    token = get_hf_token()
+    api = HfApi()
+    orgs = [DEFAULT_HF_ORG]
+    try:
+        user_info = api.whoami(token=token)
+        username = user_info.get("name")
+        if username:
+            orgs.append(username)
+        orgs.extend(org["name"] for org in user_info.get("orgs", []) if org.get("name"))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to list Hugging Face organizations: {str(e)}")
+
+    unique_orgs = list(dict.fromkeys(orgs))
+    return JSONResponse({"default_org": DEFAULT_HF_ORG, "orgs": unique_orgs})
+
+
+@app.get("/api/hub/datasets")
+def list_hub_datasets(org: str) -> JSONResponse:
+    org = org.strip()
+    if not org:
+        raise HTTPException(status_code=400, detail="Organization is required")
+
+    token = get_hf_token()
+    api = HfApi()
+    try:
+        items = api.list_datasets(author=org, token=token)
+        repo_ids = [getattr(item, "id", None) or getattr(item, "repo_id", None) for item in items]
+        repo_ids = [repo_id for repo_id in repo_ids if repo_id]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to list datasets for {org}: {str(e)}")
+
+    return JSONResponse({"org": org, "datasets": repo_ids})
 
 
 @app.post("/api/dataset/load")

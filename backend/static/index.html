@@ -22,19 +22,16 @@
       <form id="connectForm">
         <div class="row">
           <label>
-            Source
-            <select id="sourceSelect">
-              <option value="hf">Hugging Face Hub</option>
-              <option value="local">Local path</option>
+            Organization
+            <select id="orgSelect">
+              <option value="cortexairobot">cortexairobot</option>
             </select>
           </label>
-          <label>
-            Repo ID
-            <input id="repoInput" type="text" placeholder="lerobot/your-dataset" />
-          </label>
-          <label>
-            Local path
-            <input id="localInput" type="text" placeholder="/path/to/dataset" />
+          <label class="grow">
+            Dataset
+            <select id="repoInput">
+              <option value="">Search datasets to select a repo</option>
+            </select>
           </label>
           <label>
             Revision
@@ -42,6 +39,7 @@
           </label>
         </div>
         <div class="row">
+          <button id="searchDatasetsBtn" type="button" class="ghost">Search datasets</button>
           <label>
             Video key
             <select id="videoKeySelect"></select>

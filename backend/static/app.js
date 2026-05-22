@@ -114,10 +114,10 @@ console.log('[App] handlePushToHub function defined');
 
 const statusEl = document.getElementById('status');
 const connectForm = document.getElementById('connectForm');
-const sourceSelect = document.getElementById('sourceSelect');
+const orgSelect = document.getElementById('orgSelect');
 const repoInput = document.getElementById('repoInput');
-const localInput = document.getElementById('localInput');
 const revisionInput = document.getElementById('revisionInput');
+const searchDatasetsBtn = document.getElementById('searchDatasetsBtn');
 const videoKeySelect = document.getElementById('videoKeySelect');
 const connectHelper = document.getElementById('connectHelper');
 
@@ -174,6 +174,7 @@ console.log('[App] Push to Hub elements:', {
 
 const tabs = document.querySelectorAll('.tab');
 const tabPanels = document.querySelectorAll('.tab-panel');
+const DEFAULT_HF_ORG = 'cortexairobot';
 
 const state = {
   dataset: null,
@@ -512,13 +513,85 @@ async function saveEpisode() {
   }
 }
 
+function populateOrgSelect(orgs, selected = DEFAULT_HF_ORG) {
+  orgSelect.innerHTML = '';
+  const uniqueOrgs = [...new Set([selected, ...(orgs || [])].filter(Boolean))];
+  uniqueOrgs.forEach(org => {
+    const option = document.createElement('option');
+    option.value = org;
+    option.textContent = org;
+    if (org === selected) option.selected = true;
+    orgSelect.appendChild(option);
+  });
+}
+
+function populateDatasetSelect(datasets) {
+  repoInput.innerHTML = '';
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = datasets.length ? 'Select a dataset' : 'No datasets found';
+  repoInput.appendChild(placeholder);
+
+  datasets.forEach(repoId => {
+    const option = document.createElement('option');
+    option.value = repoId;
+    option.textContent = repoId;
+    repoInput.appendChild(option);
+  });
+}
+
+async function loadOrganizations() {
+  populateOrgSelect([DEFAULT_HF_ORG]);
+  try {
+    const res = await fetch('/api/hub/orgs');
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.detail || 'Failed to load organizations');
+    }
+    populateOrgSelect(data.orgs || [DEFAULT_HF_ORG], data.default_org || DEFAULT_HF_ORG);
+    await searchDatasets();
+  } catch (err) {
+    setHelper(connectHelper, err.message);
+  }
+}
+
+async function searchDatasets() {
+  const org = orgSelect.value || DEFAULT_HF_ORG;
+  setHelper(connectHelper, `Searching datasets for ${org}...`);
+  populateDatasetSelect([]);
+
+  try {
+    const res = await fetch(`/api/hub/datasets?org=${encodeURIComponent(org)}`);
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.detail || 'Failed to search datasets');
+    }
+    const datasets = data.datasets || [];
+    populateDatasetSelect(datasets);
+    setHelper(connectHelper, `Found ${datasets.length} datasets for ${org}.`, true);
+  } catch (err) {
+    setHelper(connectHelper, err.message);
+  }
+}
+
+searchDatasetsBtn.addEventListener('click', searchDatasets);
+orgSelect.addEventListener('change', () => {
+  populateDatasetSelect([]);
+  setHelper(connectHelper, 'Search datasets to refresh the list for this organization.');
+});
+
 connectForm.addEventListener('submit', async (event) => {
   event.preventDefault();
+  const repoId = repoInput.value.trim();
+  if (!repoId) {
+    setHelper(connectHelper, 'Select a dataset before loading.');
+    return;
+  }
+
   const payload = {
-    source: sourceSelect.value,
-    repo_id: repoInput.value.trim() || null,
+    source: 'hf',
+    repo_id: repoId,
     revision: revisionInput.value.trim() || null,
-    local_path: localInput.value.trim() || null,
     video_key: videoKeySelect.value || null,
   };
 
@@ -545,6 +618,8 @@ connectForm.addEventListener('submit', async (event) => {
     setHelper(connectHelper, err.message);
   }
 });
+
+loadOrganizations();
 
 function populateVideoKeys(keys, selected) {
   videoKeySelect.innerHTML = '';
