@@ -25,6 +25,19 @@ EXPORT_ROOT = Path(os.environ.get("LEROBOT_ANNOTATE_EXPORT", "/tmp/lerobot_annot
 TRIMMED_VIDEO_CACHE = CACHE_ROOT / "trimmed_videos"
 
 
+def get_hf_token() -> str:
+    token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
+    if not token:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "HF_TOKEN is not configured. Add it as a Hugging Face Space secret "
+                "before loading or pushing Hub datasets."
+            ),
+        )
+    return token
+
+
 def trim_video_with_ffmpeg(input_path: Path, output_path: Path, start_time: float, end_time: float) -> bool:
     """Trim a video using FFmpeg to extract only the specified time range.
     
@@ -174,12 +187,14 @@ class DataManager:
             CACHE_ROOT.mkdir(parents=True, exist_ok=True)
             repo_dir = CACHE_ROOT / req.repo_id.replace("/", "__")
             repo_dir.mkdir(parents=True, exist_ok=True)
+            token = get_hf_token()
             snapshot_download(
                 req.repo_id,
                 repo_type="dataset",
                 revision=req.revision,
                 local_dir=repo_dir,
                 allow_patterns=["meta/*"],
+                token=token,
             )
             self.dataset_root = repo_dir
 
@@ -370,12 +385,14 @@ class DataManager:
             return full_path
 
         if self.source == "hf" and self.repo_id:
+            token = get_hf_token()
             hf_hub_download(
                 repo_id=self.repo_id,
                 repo_type="dataset",
                 filename=rel_path,
                 revision=self.revision,
                 local_dir=self.dataset_root,
+                token=token,
             )
             if full_path.exists():
                 return full_path
@@ -642,7 +659,6 @@ def export_dataset(payload: dict[str, Any]) -> JSONResponse:
 
 
 class PushToHubRequest(BaseModel):
-    hf_token: str
     push_in_place: bool = True
     new_repo_id: str | None = None
     private: bool = False
@@ -665,6 +681,8 @@ def push_to_hub(payload: PushToHubRequest) -> JSONResponse:
     if manager.source != "hf":
         print(f"[Push to Hub] Error: Source is '{manager.source}', not 'hf'")
         raise HTTPException(status_code=400, detail="Can only push to Hub for datasets loaded from Hub")
+
+    token = get_hf_token()
     
     # Download data files if they don't exist (they weren't downloaded during initial load)
     data_dir = manager.dataset_root / "data"
@@ -680,6 +698,7 @@ def push_to_hub(payload: PushToHubRequest) -> JSONResponse:
                 revision=manager.revision,
                 local_dir=manager.dataset_root,
                 allow_patterns=["data/**/*.parquet"],
+                token=token,
             )
             print("[Push to Hub] Data files downloaded successfully")
         except Exception as e:
@@ -699,6 +718,7 @@ def push_to_hub(payload: PushToHubRequest) -> JSONResponse:
                 revision=manager.revision,
                 local_dir=manager.dataset_root,
                 allow_patterns=["videos/**/*.mp4"],
+                token=token,
             )
             print("[Push to Hub] Videos downloaded successfully")
         except Exception as e:
@@ -727,7 +747,7 @@ def push_to_hub(payload: PushToHubRequest) -> JSONResponse:
     
     try:
         print("[Push to Hub] Initializing HfApi...")
-        api = HfApi(token=payload.hf_token)
+        api = HfApi(token=token)
         
         # Create repo if pushing to new location
         if not payload.push_in_place:

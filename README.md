@@ -38,12 +38,20 @@ Open `http://localhost:7860` in your browser.
 
 1. Create a new Space and select **Docker**.
 2. Point it to this repository.
-3. The Space will build the provided `Dockerfile` and run `uvicorn` on port `7860`.
+3. Add a Space secret named `HF_TOKEN`.
+   - Give the token read access to the source datasets people will annotate.
+   - Give the token write access to any dataset repos the Space should update or create.
+4. The Space will build the provided `Dockerfile` and run `uvicorn` on port `7860`.
 
 Optional environment variables:
 
 - `LEROBOT_ANNOTATE_CACHE`: where HF datasets are downloaded (default `/tmp/lerobot_annotate_cache`).
 - `LEROBOT_ANNOTATE_EXPORT`: where exports are written (default `/tmp/lerobot_annotate_exports`).
+- `HF_TOKEN`: required for Hub dataset loading, video downloads, and push-to-Hub. Configure it as a Space secret, not a checked-in environment file.
+
+### Token access model
+
+The deployed Space uses the server-side `HF_TOKEN` for both reading datasets and pushing annotations to the Hub. Anyone who can access the Space can trigger those operations with that token, so keep the Space private or limited to trusted annotators and use a token with the minimum required scopes.
 
 ## Notes
 

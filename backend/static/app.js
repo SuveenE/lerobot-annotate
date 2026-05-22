@@ -42,7 +42,6 @@ function showPushStatus(type, message, url = null) {
 async function handlePushToHub() {
   console.log('[Push to Hub] handlePushToHub called');
   
-  const tokenEl = document.getElementById('hfToken');
   const statusEl = document.getElementById('pushHubStatus');
   const btnEl = document.getElementById('pushHubBtn');
   const inPlaceEl = document.getElementById('pushInPlace');
@@ -50,17 +49,9 @@ async function handlePushToHub() {
   const privateEl = document.getElementById('privateRepo');
   const msgEl = document.getElementById('commitMessage');
   
-  if (!tokenEl || !statusEl) {
+  if (!statusEl) {
     console.error('[Push to Hub] Missing DOM elements');
     alert('Error: Missing form elements. Please refresh the page.');
-    return;
-  }
-  
-  const token = tokenEl.value.trim();
-  console.log('[Push to Hub] Token provided:', token ? 'Yes (hidden)' : 'No');
-  
-  if (!token) {
-    showPushStatus('error', 'Please enter your Hugging Face token');
     return;
   }
 
@@ -82,14 +73,13 @@ async function handlePushToHub() {
 
   try {
     const payload = {
-      hf_token: token,
       push_in_place: pushInPlaceChecked,
       new_repo_id: pushInPlaceChecked ? null : newRepoIdValue,
       private: privateEl ? privateEl.checked : false,
       commit_message: (msgEl ? msgEl.value.trim() : '') || 'Add annotations from LeRobot Annotate',
     };
     
-    console.log('[Push to Hub] Sending request with payload:', { ...payload, hf_token: '[HIDDEN]' });
+    console.log('[Push to Hub] Sending request with payload:', payload);
 
     const res = await fetch('/api/push_to_hub', {
       method: 'POST',
@@ -168,7 +158,6 @@ const copyVideos = document.getElementById('copyVideos');
 const exportStatus = document.getElementById('exportStatus');
 
 // Push to Hub elements
-const hfToken = document.getElementById('hfToken');
 const pushInPlace = document.getElementById('pushInPlace');
 const newRepoRow = document.getElementById('newRepoRow');
 const newRepoId = document.getElementById('newRepoId');
@@ -179,7 +168,6 @@ const pushHubStatus = document.getElementById('pushHubStatus');
 
 console.log('[App] Push to Hub elements:', { 
   pushHubBtn: !!pushHubBtn, 
-  hfToken: !!hfToken, 
   pushHubStatus: !!pushHubStatus,
   pushInPlace: !!pushInPlace 
 });
