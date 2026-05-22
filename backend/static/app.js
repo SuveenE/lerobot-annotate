@@ -116,6 +116,7 @@ const statusEl = document.getElementById('status');
 const connectForm = document.getElementById('connectForm');
 const orgSelect = document.getElementById('orgSelect');
 const repoInput = document.getElementById('repoInput');
+const datasetOptions = document.getElementById('datasetOptions');
 const revisionInput = document.getElementById('revisionInput');
 const searchDatasetsBtn = document.getElementById('searchDatasetsBtn');
 const videoKeySelect = document.getElementById('videoKeySelect');
@@ -526,17 +527,14 @@ function populateOrgSelect(orgs, selected = DEFAULT_HF_ORG) {
 }
 
 function populateDatasetSelect(datasets) {
-  repoInput.innerHTML = '';
-  const placeholder = document.createElement('option');
-  placeholder.value = '';
-  placeholder.textContent = datasets.length ? 'Select a dataset' : 'No datasets found';
-  repoInput.appendChild(placeholder);
+  repoInput.value = '';
+  repoInput.placeholder = datasets.length ? 'Type to filter datasets' : 'No datasets found';
+  datasetOptions.innerHTML = '';
 
   datasets.forEach(repoId => {
     const option = document.createElement('option');
     option.value = repoId;
-    option.textContent = repoId;
-    repoInput.appendChild(option);
+    datasetOptions.appendChild(option);
   });
 }
 

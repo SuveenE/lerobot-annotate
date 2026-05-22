@@ -29,9 +29,8 @@
           </label>
           <label class="grow">
             Dataset
-            <select id="repoInput">
-              <option value="">Search datasets to select a repo</option>
-            </select>
+            <input id="repoInput" type="text" list="datasetOptions" placeholder="Search datasets, then type to filter" autocomplete="off" />
+            <datalist id="datasetOptions"></datalist>
           </label>
           <label>
             Revision
