@@ -25,6 +25,7 @@ CACHE_ROOT = Path(os.environ.get("LEROBOT_ANNOTATE_CACHE", "/tmp/lerobot_annotat
 EXPORT_ROOT = Path(os.environ.get("LEROBOT_ANNOTATE_EXPORT", "/tmp/lerobot_annotate_exports"))
 TRIMMED_VIDEO_CACHE = CACHE_ROOT / "trimmed_videos"
 DEFAULT_HF_ORG = os.environ.get("LEROBOT_ANNOTATE_DEFAULT_ORG", "cortexairobot")
+PREFERRED_VIDEO_KEYS = ("observation.images.top", "observations.images.top")
 
 
 def timestamp_or_epoch(value: Any) -> datetime:
@@ -217,7 +218,7 @@ class DataManager:
         video_keys = self._get_video_keys()
         if not video_keys:
             raise HTTPException(status_code=400, detail="Dataset has no video keys")
-        self.video_key = req.video_key or video_keys[0]
+        self.video_key = req.video_key or self._default_video_key(video_keys)
         if self.video_key not in video_keys:
             raise HTTPException(
                 status_code=400,
@@ -307,6 +308,12 @@ class DataManager:
         features = self.info.get("features", {}) if self.info else {}
         return sorted([key for key, meta in features.items() if meta.get("dtype") == "video"])
 
+    def _default_video_key(self, video_keys: list[str]) -> str:
+        for preferred_key in PREFERRED_VIDEO_KEYS:
+            if preferred_key in video_keys:
+                return preferred_key
+        return video_keys[0]
+
     def _load_existing_annotations(self) -> None:
         self.annotations = {}
         if self.annotations_path and self.annotations_path.exists():
@@ -352,7 +359,8 @@ class DataManager:
     def _build_summary(self) -> dict[str, Any]:
         assert self.info and self.episodes_df is not None
         fps = float(self.info.get("fps", 30))
-        video_key = self.video_key or self._get_video_keys()[0] if self._get_video_keys() else None
+        video_keys = self._get_video_keys()
+        video_key = self.video_key or self._default_video_key(video_keys) if video_keys else None
         
         # Calculate video offsets for each episode (for concatenated videos)
         episode_video_offsets = self._calculate_video_offsets(video_key, fps) if video_key else {}
@@ -381,7 +389,7 @@ class DataManager:
             "revision": self.revision,
             "root": str(self.dataset_root),
             "fps": fps,
-            "video_keys": self._get_video_keys(),
+            "video_keys": video_keys,
             "selected_video_key": self.video_key,
             "episodes": episodes,
         }
