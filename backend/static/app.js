@@ -127,6 +127,7 @@ const episodeList = document.getElementById('episodeList');
 const episodeSearch = document.getElementById('episodeSearch');
 const episodeTitle = document.getElementById('episodeTitle');
 const episodeMeta = document.getElementById('episodeMeta');
+const videoShell = document.getElementById('videoShell');
 const episodeVideo = document.getElementById('episodeVideo');
 const timeline = document.getElementById('timeline');
 
@@ -217,6 +218,14 @@ function currentTime() {
   // The server now returns trimmed videos, so currentTime is the actual episode time
   // Use 3 decimal places for millisecond precision
   return Number(episodeVideo.currentTime.toFixed(3));
+}
+
+function setSubtaskStartFromVideo() {
+  subtaskStart.value = currentTime();
+}
+
+function setSubtaskEndFromVideo() {
+  subtaskEnd.value = currentTime();
 }
 
 function formatTimeWithMs(seconds) {
@@ -642,12 +651,25 @@ function populateVideoKeys(keys, selected) {
   });
 }
 
-subtaskSetStart.addEventListener('click', () => {
-  subtaskStart.value = currentTime();
-});
+subtaskSetStart.addEventListener('click', setSubtaskStartFromVideo);
 
-subtaskSetEnd.addEventListener('click', () => {
-  subtaskEnd.value = currentTime();
+subtaskSetEnd.addEventListener('click', setSubtaskEndFromVideo);
+
+function handleVideoEditorShortcut(event) {
+  const key = event.key.toLowerCase();
+  if (key === 's') {
+    event.preventDefault();
+    event.stopPropagation();
+    setSubtaskStartFromVideo();
+  } else if (key === 'e') {
+    event.preventDefault();
+    event.stopPropagation();
+    setSubtaskEndFromVideo();
+  }
+}
+
+[videoShell, episodeVideo, timeline].forEach(el => {
+  if (el) el.addEventListener('keydown', handleVideoEditorShortcut);
 });
 
 function addCurrentSubtask() {
