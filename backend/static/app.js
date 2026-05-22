@@ -128,6 +128,7 @@ const episodeSearch = document.getElementById('episodeSearch');
 const episodeTitle = document.getElementById('episodeTitle');
 const episodeMeta = document.getElementById('episodeMeta');
 const episodeVideo = document.getElementById('episodeVideo');
+const videoShell = document.getElementById('videoShell');
 const timeline = document.getElementById('timeline');
 
 const saveEpisodeBtn = document.getElementById('saveEpisode');
@@ -692,6 +693,16 @@ function handleVideoEditorShortcut(event) {
 
 window.addEventListener('keydown', handleVideoEditorShortcut, true);
 document.addEventListener('keydown', handleVideoEditorShortcut, true);
+if (videoShell) videoShell.addEventListener('keydown', handleVideoEditorShortcut, true);
+if (episodeVideo) episodeVideo.addEventListener('keydown', handleVideoEditorShortcut, true);
+
+if (videoShell) {
+  videoShell.addEventListener('mouseenter', () => {
+    if (!isEditableTarget(document.activeElement)) {
+      videoShell.focus({ preventScroll: true });
+    }
+  });
+}
 
 function addCurrentSubtask() {
   if (state.currentEpisode == null) return;
