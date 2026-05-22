@@ -696,11 +696,19 @@ document.addEventListener('keydown', handleVideoEditorShortcut, true);
 if (videoShell) videoShell.addEventListener('keydown', handleVideoEditorShortcut, true);
 if (episodeVideo) episodeVideo.addEventListener('keydown', handleVideoEditorShortcut, true);
 
+function ensureVideoShellFocus() {
+  if (!videoShell) return;
+  const active = document.activeElement;
+  if (active === videoShell) return;
+  if (isEditableTarget(active)) return;
+  videoShell.focus({ preventScroll: true });
+}
+
 if (videoShell) {
-  videoShell.addEventListener('mouseenter', () => {
-    if (!isEditableTarget(document.activeElement)) {
-      videoShell.focus({ preventScroll: true });
-    }
+  videoShell.addEventListener('mouseenter', ensureVideoShellFocus);
+  videoShell.addEventListener('mousemove', ensureVideoShellFocus);
+  videoShell.addEventListener('focusin', (event) => {
+    if (event.target !== videoShell) ensureVideoShellFocus();
   });
 }
 
