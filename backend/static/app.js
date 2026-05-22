@@ -665,16 +665,18 @@ function handleVideoEditorShortcut(event) {
 
   const key = (event.key || '').toLowerCase();
   if (key !== 's' && key !== 'e') return;
-
-  console.log('[Shortcut]', key, 'currentEpisode=', state.currentEpisode);
   if (state.currentEpisode == null) return;
 
   event.preventDefault();
   event.stopPropagation();
+
+  const activePanel = document.querySelector('.tab-panel.active');
+  const isHighLevel = activePanel && activePanel.id === 'highlevelsPanel';
+
   if (key === 's') {
-    setSubtaskStartFromVideo();
+    (isHighLevel ? hlSetStart : subtaskSetStart).click();
   } else {
-    setSubtaskEndFromVideo();
+    (isHighLevel ? hlSetEnd : subtaskSetEnd).click();
   }
 }
 
