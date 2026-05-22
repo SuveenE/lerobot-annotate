@@ -185,6 +185,7 @@ const state = {
   currentEpisodeData: null, // Store the full episode data including video timing
   annotations: {},
 };
+let videoEditorActive = false;
 
 function setStatus(text, ok = false) {
   statusEl.textContent = text;
@@ -226,6 +227,11 @@ function setSubtaskStartFromVideo() {
 
 function setSubtaskEndFromVideo() {
   subtaskEnd.value = currentTime();
+}
+
+function isEditableTarget(target) {
+  if (!(target instanceof HTMLElement)) return false;
+  return Boolean(target.closest('input, textarea, select, button, [contenteditable="true"]'));
 }
 
 function formatTimeWithMs(seconds) {
@@ -656,6 +662,7 @@ subtaskSetStart.addEventListener('click', setSubtaskStartFromVideo);
 subtaskSetEnd.addEventListener('click', setSubtaskEndFromVideo);
 
 function handleVideoEditorShortcut(event) {
+  if (!videoEditorActive || isEditableTarget(event.target)) return;
   const key = event.key.toLowerCase();
   if (key === 's') {
     event.preventDefault();
@@ -668,9 +675,24 @@ function handleVideoEditorShortcut(event) {
   }
 }
 
-[videoShell, episodeVideo, timeline].forEach(el => {
-  if (el) el.addEventListener('keydown', handleVideoEditorShortcut);
-});
+if (videoShell) {
+  videoShell.addEventListener('pointerdown', () => {
+    videoEditorActive = true;
+  });
+  videoShell.addEventListener('focusin', () => {
+    videoEditorActive = true;
+  });
+}
+
+document.addEventListener('pointerdown', (event) => {
+  videoEditorActive = Boolean(videoShell && videoShell.contains(event.target));
+}, true);
+
+document.addEventListener('focusin', (event) => {
+  videoEditorActive = Boolean(videoShell && videoShell.contains(event.target));
+}, true);
+
+document.addEventListener('keydown', handleVideoEditorShortcut, true);
 
 function addCurrentSubtask() {
   if (state.currentEpisode == null) return;
