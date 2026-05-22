@@ -3,13 +3,12 @@ FROM python:3.10-slim
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y \
-    git \
     build-essential \
     curl \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-RUN git clone https://github.com/huggingface/lerobot-annotate.git .
+COPY . .
 
 RUN pip install --no-cache-dir -r backend/requirements.txt
 
