@@ -716,24 +716,26 @@ tabs.forEach(tab => {
   });
 });
 
-exportBtn.addEventListener('click', async () => {
-  exportStatus.textContent = 'Exporting...';
-  const payload = {
-    output_dir: outputDir.value.trim() || null,
-    copy_videos: copyVideos.checked,
-  };
-  const res = await fetch('/api/export', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+if (exportBtn && exportStatus && outputDir && copyVideos) {
+  exportBtn.addEventListener('click', async () => {
+    exportStatus.textContent = 'Exporting...';
+    const payload = {
+      output_dir: outputDir.value.trim() || null,
+      copy_videos: copyVideos.checked,
+    };
+    const res = await fetch('/api/export', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      exportStatus.textContent = `Exported to ${data.output_dir} (subtasks: ${data.subtasks}, high-level: ${data.tasks_high_level})`;
+    } else {
+      exportStatus.textContent = data.detail || 'Export failed';
+    }
   });
-  const data = await res.json();
-  if (res.ok) {
-    exportStatus.textContent = `Exported to ${data.output_dir} (subtasks: ${data.subtasks}, high-level: ${data.tasks_high_level})`;
-  } else {
-    exportStatus.textContent = data.detail || 'Export failed';
-  }
-});
+}
 
 // Toggle new repo input visibility based on push in place checkbox
 if (pushInPlace && newRepoRow) {
