@@ -224,16 +224,34 @@ class DataManager:
 
     def _load_episodes(self, root: Path) -> pd.DataFrame:
         episodes_root = root / "meta" / "episodes"
-        if not episodes_root.exists():
-            raise HTTPException(status_code=404, detail=f"Missing episodes directory at {episodes_root}")
-        files = sorted(episodes_root.rglob("*.parquet"))
-        if not files:
-            raise HTTPException(status_code=404, detail="No episodes parquet files found")
-        dfs = [pd.read_parquet(path) for path in files]
-        df = pd.concat(dfs, ignore_index=True)
+        episodes_jsonl = root / "meta" / "episodes.jsonl"
+
+        if episodes_root.exists():
+            files = sorted(episodes_root.rglob("*.parquet"))
+            if files:
+                dfs = [pd.read_parquet(path) for path in files]
+                df = pd.concat(dfs, ignore_index=True)
+            elif episodes_jsonl.exists():
+                df = self._load_episodes_jsonl(episodes_jsonl)
+            else:
+                raise HTTPException(status_code=404, detail="No episodes parquet files found")
+        elif episodes_jsonl.exists():
+            df = self._load_episodes_jsonl(episodes_jsonl)
+        else:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Missing episodes metadata at {episodes_root} or {episodes_jsonl}",
+            )
+
         if "episode_index" not in df.columns:
-            raise HTTPException(status_code=400, detail="episodes parquet missing 'episode_index' column")
+            raise HTTPException(status_code=400, detail="episodes metadata missing 'episode_index' column")
         return df.sort_values("episode_index").reset_index(drop=True)
+
+    def _load_episodes_jsonl(self, path: Path) -> pd.DataFrame:
+        rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+        if not rows:
+            raise HTTPException(status_code=404, detail=f"No episodes found in {path}")
+        return pd.DataFrame(rows)
 
     def _get_video_keys(self) -> list[str]:
         features = self.info.get("features", {}) if self.info else {}
@@ -373,13 +391,16 @@ class DataManager:
 
         chunk_col = f"videos/{video_key}/chunk_index"
         file_col = f"videos/{video_key}/file_index"
-        if chunk_col not in row or file_col not in row:
-            raise HTTPException(status_code=400, detail=f"Video key '{video_key}' not available for this dataset")
-
-        chunk_index = int(row[chunk_col])
-        file_index = int(row[file_col])
+        chunk_size = int(self.info.get("chunks_size") or self.info.get("chunk_size") or 1000)
+        chunk_index = int(row[chunk_col]) if chunk_col in row and pd.notna(row[chunk_col]) else episode_index // chunk_size
+        file_index = int(row[file_col]) if file_col in row and pd.notna(row[file_col]) else episode_index % chunk_size
         rel_path = self.info.get("video_path") or "videos/{video_key}/chunk-{chunk_index:03d}/file-{file_index:03d}.mp4"
-        rel_path = rel_path.format(video_key=video_key, chunk_index=chunk_index, file_index=file_index)
+        rel_path = rel_path.format(
+            video_key=video_key,
+            chunk_index=chunk_index,
+            file_index=file_index,
+            episode_index=episode_index,
+        )
         full_path = (self.dataset_root / rel_path).resolve()
 
         if full_path.exists():
