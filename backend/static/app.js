@@ -660,11 +660,20 @@ subtaskSetStart.addEventListener('click', setSubtaskStartFromVideo);
 subtaskSetEnd.addEventListener('click', setSubtaskEndFromVideo);
 
 function handleVideoEditorShortcut(event) {
-  if (event.metaKey || event.ctrlKey || event.altKey) return;
-  if (isEditableTarget(event.target)) return;
-
   const key = (event.key || '').toLowerCase();
   if (key !== 's' && key !== 'e') return;
+
+  console.log('[Shortcut] keydown', {
+    key,
+    target: event.target && event.target.tagName,
+    targetId: event.target && event.target.id,
+    editable: isEditableTarget(event.target),
+    modifiers: { meta: event.metaKey, ctrl: event.ctrlKey, alt: event.altKey },
+    currentEpisode: state.currentEpisode,
+  });
+
+  if (event.metaKey || event.ctrlKey || event.altKey) return;
+  if (isEditableTarget(event.target)) return;
   if (state.currentEpisode == null) return;
 
   event.preventDefault();
@@ -672,6 +681,7 @@ function handleVideoEditorShortcut(event) {
 
   const activePanel = document.querySelector('.tab-panel.active');
   const isHighLevel = activePanel && activePanel.id === 'highlevelsPanel';
+  console.log('[Shortcut] firing', { isHighLevel, activePanel: activePanel && activePanel.id });
 
   if (key === 's') {
     (isHighLevel ? hlSetStart : subtaskSetStart).click();
