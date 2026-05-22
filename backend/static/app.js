@@ -195,6 +195,17 @@ function setHelper(el, message, ok = false) {
   el.style.color = ok ? '#22c55e' : '#94a3b8';
 }
 
+async function readJsonResponse(res) {
+  const text = await res.text();
+  if (!text) return {};
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(text || `Request failed with status ${res.status}`);
+  }
+}
+
 function formatDuration(seconds) {
   if (!seconds && seconds !== 0) return '';
   const mins = Math.floor(seconds / 60);
@@ -600,7 +611,7 @@ connectForm.addEventListener('submit', async (event) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    const data = await res.json();
+    const data = await readJsonResponse(res);
     if (!res.ok) {
       throw new Error(data.detail || 'Failed to load dataset');
     }

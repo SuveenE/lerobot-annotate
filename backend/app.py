@@ -194,7 +194,7 @@ class DataManager:
                 repo_type="dataset",
                 revision=req.revision,
                 local_dir=repo_dir,
-                allow_patterns=["meta/*"],
+                allow_patterns=["meta/**"],
                 token=token,
             )
             self.dataset_root = repo_dir
@@ -238,10 +238,7 @@ class DataManager:
         elif episodes_jsonl.exists():
             df = self._load_episodes_jsonl(episodes_jsonl)
         else:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Missing episodes metadata at {episodes_root} or {episodes_jsonl}",
-            )
+            df = self._build_v3_episodes_from_info()
 
         if "episode_index" not in df.columns:
             raise HTTPException(status_code=400, detail="episodes metadata missing 'episode_index' column")
@@ -252,6 +249,47 @@ class DataManager:
         if not rows:
             raise HTTPException(status_code=404, detail=f"No episodes found in {path}")
         return pd.DataFrame(rows)
+
+    def _build_v3_episodes_from_info(self) -> pd.DataFrame:
+        if not self.info or self.info.get("codebase_version") != "v3.0":
+            raise HTTPException(status_code=404, detail="Missing episodes metadata")
+
+        total_episodes = int(self.info.get("total_episodes") or 0)
+        if total_episodes <= 0:
+            raise HTTPException(status_code=404, detail="Missing episodes metadata and total_episodes")
+
+        return pd.DataFrame({"episode_index": list(range(total_episodes))})
+
+    def _number_or_none(self, value: Any) -> float | None:
+        if value is None or isinstance(value, (dict, list, tuple)):
+            return None
+        try:
+            if pd.isna(value):
+                return None
+        except (TypeError, ValueError):
+            return None
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    def _episode_length(self, row: pd.Series, fps: float) -> int:
+        length = self._number_or_none(row.get("length"))
+        if length is not None:
+            return max(0, int(length))
+
+        dataset_from = self._number_or_none(row.get("dataset_from_index"))
+        dataset_to = self._number_or_none(row.get("dataset_to_index"))
+        if dataset_from is not None and dataset_to is not None:
+            return max(0, int(dataset_to - dataset_from))
+
+        duration = self._number_or_none(row.get("duration"))
+        if duration is None:
+            duration = self._number_or_none(row.get("duration_s"))
+        if duration is not None and fps:
+            return max(0, int(round(duration * fps)))
+
+        return 0
 
     def _get_video_keys(self) -> list[str]:
         features = self.info.get("features", {}) if self.info else {}
@@ -309,7 +347,7 @@ class DataManager:
         
         episodes = []
         for _, row in self.episodes_df.iterrows():
-            length = int(row.get("length", row.get("dataset_to_index", 0) - row.get("dataset_from_index", 0)))
+            length = self._episode_length(row, fps)
             duration = length / fps if fps else 0.0
             ep_idx = int(row["episode_index"])
             
@@ -355,7 +393,7 @@ class DataManager:
         result = {}
         for _, row in self.episodes_df.iterrows():
             ep_idx = int(row["episode_index"])
-            length = int(row.get("length", row.get("dataset_to_index", 0) - row.get("dataset_from_index", 0)))
+            length = self._episode_length(row, fps)
             duration = length / fps if fps else 0.0
             
             # Use the actual timestamps from the episode metadata if available
@@ -398,6 +436,7 @@ class DataManager:
         rel_path = rel_path.format(
             video_key=video_key,
             chunk_index=chunk_index,
+            episode_chunk=chunk_index,
             file_index=file_index,
             episode_index=episode_index,
         )
@@ -679,8 +718,14 @@ def list_hub_datasets(org: str) -> JSONResponse:
 
 @app.post("/api/dataset/load")
 def load_dataset(req: DatasetLoadRequest) -> JSONResponse:
-    summary = manager.load_dataset(req)
-    return JSONResponse(summary)
+    try:
+        summary = manager.load_dataset(req)
+        return JSONResponse(summary)
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[Dataset Load] Error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to load dataset: {str(e)}")
 
 
 @app.get("/api/dataset/info")
