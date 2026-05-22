@@ -660,21 +660,25 @@ subtaskSetStart.addEventListener('click', setSubtaskStartFromVideo);
 subtaskSetEnd.addEventListener('click', setSubtaskEndFromVideo);
 
 function handleVideoEditorShortcut(event) {
-  if (isEditableTarget(event.target) || event.metaKey || event.ctrlKey || event.altKey) return;
+  if (event.metaKey || event.ctrlKey || event.altKey) return;
+  if (isEditableTarget(event.target)) return;
+
+  const key = (event.key || '').toLowerCase();
+  if (key !== 's' && key !== 'e') return;
+
+  console.log('[Shortcut]', key, 'currentEpisode=', state.currentEpisode);
   if (state.currentEpisode == null) return;
 
-  const key = event.key.toLowerCase();
+  event.preventDefault();
+  event.stopPropagation();
   if (key === 's') {
-    event.preventDefault();
-    event.stopPropagation();
     setSubtaskStartFromVideo();
-  } else if (key === 'e') {
-    event.preventDefault();
-    event.stopPropagation();
+  } else {
     setSubtaskEndFromVideo();
   }
 }
 
+window.addEventListener('keydown', handleVideoEditorShortcut, true);
 document.addEventListener('keydown', handleVideoEditorShortcut, true);
 
 function addCurrentSubtask() {
