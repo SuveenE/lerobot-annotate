@@ -229,7 +229,7 @@ function setSubtaskEndFromVideo() {
 
 function isEditableTarget(target) {
   if (!(target instanceof HTMLElement)) return false;
-  return Boolean(target.closest('input, textarea, select, button, [contenteditable="true"]'));
+  return Boolean(target.closest('input, textarea, [contenteditable="true"]'));
 }
 
 function formatTimeWithMs(seconds) {
