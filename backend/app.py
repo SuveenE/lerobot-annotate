@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import tempfile
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +25,17 @@ CACHE_ROOT = Path(os.environ.get("LEROBOT_ANNOTATE_CACHE", "/tmp/lerobot_annotat
 EXPORT_ROOT = Path(os.environ.get("LEROBOT_ANNOTATE_EXPORT", "/tmp/lerobot_annotate_exports"))
 TRIMMED_VIDEO_CACHE = CACHE_ROOT / "trimmed_videos"
 DEFAULT_HF_ORG = os.environ.get("LEROBOT_ANNOTATE_DEFAULT_ORG", "cortexairobot")
+
+
+def timestamp_or_epoch(value: Any) -> datetime:
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            pass
+    return datetime.min.replace(tzinfo=timezone.utc)
 
 
 def get_hf_token() -> str:
@@ -707,7 +719,14 @@ def list_hub_datasets(org: str) -> JSONResponse:
     token = get_hf_token()
     api = HfApi()
     try:
-        items = api.list_datasets(author=org, token=token)
+        items = sorted(
+            api.list_datasets(author=org, token=token),
+            key=lambda item: (
+                timestamp_or_epoch(getattr(item, "created_at", None)),
+                timestamp_or_epoch(getattr(item, "last_modified", None) or getattr(item, "lastModified", None)),
+            ),
+            reverse=True,
+        )
         repo_ids = [getattr(item, "id", None) or getattr(item, "repo_id", None) for item in items]
         repo_ids = [repo_id for repo_id in repo_ids if repo_id]
     except Exception as e:
