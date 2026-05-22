@@ -650,7 +650,7 @@ subtaskSetEnd.addEventListener('click', () => {
   subtaskEnd.value = currentTime();
 });
 
-addSubtask.addEventListener('click', () => {
+function addCurrentSubtask() {
   if (state.currentEpisode == null) return;
   const start = Number(subtaskStart.value);
   const end = Number(subtaskEnd.value);
@@ -663,6 +663,17 @@ addSubtask.addEventListener('click', () => {
   renderSubtasks();
   renderTimeline();
   subtaskLabel.value = '';
+}
+
+addSubtask.addEventListener('click', addCurrentSubtask);
+
+[subtaskStart, subtaskEnd, subtaskLabel].forEach(input => {
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      addCurrentSubtask();
+    }
+  });
 });
 
 hlSetStart.addEventListener('click', () => {
