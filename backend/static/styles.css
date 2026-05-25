@@ -80,6 +80,10 @@ h1 {
   gap: 12px;
 }
 
+#revisionInput {
+  width: 120px;
+}
+
 .panel {
   background: var(--panel);
   border: 1px solid var(--border);
