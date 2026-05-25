@@ -93,6 +93,16 @@ h1 {
   margin: 0 0 10px;
 }
 
+.episodes,
+.viewer {
+  padding-top: 12px;
+}
+
+.episodes h2,
+.viewer-header h2 {
+  margin-top: 0;
+}
+
 .panel {
   background: var(--panel);
   border: 1px solid var(--border);
