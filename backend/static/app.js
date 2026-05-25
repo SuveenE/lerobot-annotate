@@ -77,6 +77,33 @@ async function handlePushToHub() {
   }
 
   try {
+    // Save all locally-edited episodes to the backend before pushing,
+    // so the Hub upload includes everything the user changed in this session.
+    const dirtySet = (typeof state !== 'undefined' && state.dirtyEpisodes) ? state.dirtyEpisodes : null;
+    if (dirtySet && dirtySet.size > 0) {
+      const dirtyList = Array.from(dirtySet);
+      console.log(`[Push to Hub] Saving ${dirtyList.length} edited episode(s) before push:`, dirtyList);
+      showPushStatus('loading', `Saving ${dirtyList.length} edited episode(s)...`);
+      for (const epIdx of dirtyList) {
+        const ann = state.annotations[epIdx];
+        if (!ann) continue;
+        const saveRes = await fetch(`/api/episodes/${epIdx}/annotations`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            episode_index: epIdx,
+            subtasks: ann.subtasks,
+            high_levels: ann.high_levels,
+          }),
+        });
+        if (!saveRes.ok) {
+          const saveData = await saveRes.json().catch(() => ({}));
+          throw new Error(saveData.detail || `Failed to save episode ${epIdx} before push`);
+        }
+      }
+      showPushStatus('loading', 'Pushing to Hub... This may take a while for large datasets.');
+    }
+
     const payload = {
       push_in_place: pushInPlaceChecked,
       new_repo_id: pushInPlaceChecked ? null : newRepoIdValue,
@@ -106,7 +133,7 @@ async function handlePushToHub() {
     }
   } catch (err) {
     console.error('[Push to Hub] Error:', err);
-    showPushStatus('error', `Network error: ${err.message}. Please check your connection and try again.`);
+    showPushStatus('error', err.message || 'Push failed. Please check your connection and try again.');
   } finally {
     if (btnEl) {
       btnEl.disabled = false;
@@ -195,6 +222,7 @@ const state = {
   currentEpisodeData: null, // Store the full episode data including video timing
   annotations: {},
   dirty: false,
+  dirtyEpisodes: new Set(),
 };
 
 const topPushHubBtn = document.getElementById('topPushHubBtn');
@@ -204,13 +232,16 @@ function updateTopPushBtnState() {
   topPushHubBtn.disabled = !state.dirty;
 }
 
-function markDirty() {
+function markDirty(epIdx) {
+  if (epIdx == null) epIdx = state.currentEpisode;
+  if (epIdx != null) state.dirtyEpisodes.add(epIdx);
   state.dirty = true;
   updateTopPushBtnState();
 }
 
 function clearDirty() {
   state.dirty = false;
+  state.dirtyEpisodes.clear();
   updateTopPushBtnState();
 }
 
@@ -542,12 +573,14 @@ async function selectEpisode(epIdx) {
   state.currentEpisodeData = ep || null;
   episodeMeta.textContent = ep ? `${ep.length} frames • ${formatDuration(ep.duration)}` : '';
 
-  const res = await fetch(`/api/episodes/${epIdx}/annotations`);
-  const data = await res.json();
-  state.annotations[epIdx] = {
-    subtasks: data.subtasks || [],
-    high_levels: data.high_levels || [],
-  };
+  if (!state.annotations[epIdx]) {
+    const res = await fetch(`/api/episodes/${epIdx}/annotations`);
+    const data = await res.json();
+    state.annotations[epIdx] = {
+      subtasks: data.subtasks || [],
+      high_levels: data.high_levels || [],
+    };
+  }
 
   // The server now handles video trimming for concatenated videos
   // It will return only the portion of video for this specific episode
