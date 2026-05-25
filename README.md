@@ -41,8 +41,7 @@ Open `http://localhost:7860` in your browser.
 2. **Select an episode** from the left list to open its video.
 3. **Add subtask segments** with start/end timestamps and labels.
 4. **Add high-level segments** with user prompt + robot response (optional skill/scenario/response tags).
-5. **Save episode** to persist annotations.
-6. **Export** to write parquet updates and dataset metadata.
+5. **Push to Hub** to save all in-session edits to the backend and publish the annotated parquet updates and dataset metadata.
 
 ## Hugging Face Spaces (Docker)
 

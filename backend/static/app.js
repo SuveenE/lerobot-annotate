@@ -168,7 +168,6 @@ const episodeVideo = document.getElementById('episodeVideo');
 const videoShell = document.getElementById('videoShell');
 const timeline = document.getElementById('timeline');
 
-const saveEpisodeBtn = document.getElementById('saveEpisode');
 const resetEpisodeBtn = document.getElementById('resetEpisode');
 
 const subtaskStart = document.getElementById('subtaskStart');
@@ -594,24 +593,6 @@ async function selectEpisode(epIdx) {
   renderHighLevels();
 }
 
-async function saveEpisode() {
-  if (state.currentEpisode == null) return;
-  const ann = getEpisodeAnnotations(state.currentEpisode);
-  const payload = {
-    episode_index: state.currentEpisode,
-    subtasks: ann.subtasks,
-    high_levels: ann.high_levels,
-  };
-  const res = await fetch(`/api/episodes/${state.currentEpisode}/annotations`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  if (res.ok) {
-    setHelper(connectHelper, 'Episode saved.', true);
-  }
-}
-
 function populateOrgSelect(orgs, selected = DEFAULT_HF_ORG) {
   orgSelect.innerHTML = '';
   const uniqueOrgs = [...new Set([selected, ...(orgs || [])].filter(Boolean))];
@@ -850,7 +831,6 @@ addHighLevel.addEventListener('click', () => {
   hlRobot.value = '';
 });
 
-saveEpisodeBtn.addEventListener('click', () => saveEpisode());
 resetEpisodeBtn.addEventListener('click', () => {
   if (state.currentEpisode == null) return;
   state.annotations[state.currentEpisode] = { subtasks: [], high_levels: [] };
