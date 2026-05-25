@@ -35,18 +35,11 @@ function showPushStatus(type, message, url = null) {
 async function handlePushToHub() {
   console.log('[Push to Hub] handlePushToHub called');
   
-  const statusEl = document.getElementById('pushHubStatus');
   const btnEl = document.getElementById('pushHubBtn');
   const inPlaceEl = document.getElementById('pushInPlace');
   const newRepoEl = document.getElementById('newRepoId');
   const privateEl = document.getElementById('privateRepo');
   const msgEl = document.getElementById('commitMessage');
-  
-  if (!statusEl) {
-    console.error('[Push to Hub] Missing DOM elements');
-    alert('Error: Missing form elements. Please refresh the page.');
-    return;
-  }
 
   const pushInPlaceChecked = inPlaceEl ? inPlaceEl.checked : true;
   const newRepoIdValue = newRepoEl ? newRepoEl.value.trim() : '';
