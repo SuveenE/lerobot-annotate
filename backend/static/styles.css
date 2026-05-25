@@ -69,6 +69,12 @@ h1 {
   font-weight: 600;
 }
 
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .panel {
   background: var(--panel);
   border: 1px solid var(--border);

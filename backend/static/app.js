@@ -70,6 +70,11 @@ async function handlePushToHub() {
     btnEl.disabled = true;
     btnEl.innerHTML = '<span class="spinner"></span> Pushing...';
   }
+  const topBtnEl = document.getElementById('topPushHubBtn');
+  if (topBtnEl) {
+    topBtnEl.disabled = true;
+    topBtnEl.innerHTML = '<span class="spinner"></span> Pushing...';
+  }
 
   try {
     const payload = {
@@ -94,6 +99,7 @@ async function handlePushToHub() {
     if (res.ok) {
       console.log('[Push to Hub] Success!');
       showPushStatus('success', `${data.message}`, data.url);
+      if (typeof clearDirty === 'function') clearDirty();
     } else {
       console.error('[Push to Hub] Failed:', data.detail);
       showPushStatus('error', data.detail || 'Push failed. Please check your token and try again.');
@@ -105,6 +111,10 @@ async function handlePushToHub() {
     if (btnEl) {
       btnEl.disabled = false;
       btnEl.textContent = 'Push to Hub';
+    }
+    if (topBtnEl) {
+      topBtnEl.textContent = 'Push to Hub';
+      topBtnEl.disabled = typeof state !== 'undefined' ? !state.dirty : false;
     }
   }
 }
@@ -184,7 +194,25 @@ const state = {
   currentEpisode: null,
   currentEpisodeData: null, // Store the full episode data including video timing
   annotations: {},
+  dirty: false,
 };
+
+const topPushHubBtn = document.getElementById('topPushHubBtn');
+
+function updateTopPushBtnState() {
+  if (!topPushHubBtn) return;
+  topPushHubBtn.disabled = !state.dirty;
+}
+
+function markDirty() {
+  state.dirty = true;
+  updateTopPushBtnState();
+}
+
+function clearDirty() {
+  state.dirty = false;
+  updateTopPushBtnState();
+}
 
 function setStatus(text, ok = false) {
   statusEl.textContent = text;
@@ -372,6 +400,7 @@ function renderSubtasks() {
     startInput.value = seg.start;
     startInput.addEventListener('change', () => {
       seg.start = Number(startInput.value);
+      markDirty();
       renderTimeline();
     });
 
@@ -381,6 +410,7 @@ function renderSubtasks() {
     endInput.value = seg.end;
     endInput.addEventListener('change', () => {
       seg.end = Number(endInput.value);
+      markDirty();
       renderTimeline();
     });
 
@@ -389,6 +419,7 @@ function renderSubtasks() {
     labelInput.value = seg.label;
     labelInput.addEventListener('change', () => {
       seg.label = labelInput.value;
+      markDirty();
       // Re-render both to update subtask_index based on new label
       renderSubtasks();
       renderTimeline();
@@ -399,6 +430,7 @@ function renderSubtasks() {
     deleteBtn.textContent = 'Delete';
     deleteBtn.addEventListener('click', () => {
       ann.subtasks.splice(idx, 1);
+      markDirty();
       renderSubtasks();
       renderTimeline();
     });
@@ -429,6 +461,7 @@ function renderHighLevels() {
     startInput.value = seg.start;
     startInput.addEventListener('change', () => {
       seg.start = Number(startInput.value);
+      markDirty();
     });
 
     const endInput = document.createElement('input');
@@ -437,6 +470,7 @@ function renderHighLevels() {
     endInput.value = seg.end;
     endInput.addEventListener('change', () => {
       seg.end = Number(endInput.value);
+      markDirty();
     });
 
     const promptInput = document.createElement('input');
@@ -444,6 +478,7 @@ function renderHighLevels() {
     promptInput.value = seg.user_prompt;
     promptInput.addEventListener('change', () => {
       seg.user_prompt = promptInput.value;
+      markDirty();
     });
 
     const robotInput = document.createElement('input');
@@ -451,6 +486,7 @@ function renderHighLevels() {
     robotInput.value = seg.robot_utterance;
     robotInput.addEventListener('change', () => {
       seg.robot_utterance = robotInput.value;
+      markDirty();
     });
 
     const skillInput = document.createElement('input');
@@ -458,6 +494,7 @@ function renderHighLevels() {
     skillInput.value = seg.skill || '';
     skillInput.addEventListener('change', () => {
       seg.skill = skillInput.value;
+      markDirty();
     });
 
     const scenarioInput = document.createElement('input');
@@ -465,6 +502,7 @@ function renderHighLevels() {
     scenarioInput.value = seg.scenario_type || '';
     scenarioInput.addEventListener('change', () => {
       seg.scenario_type = scenarioInput.value;
+      markDirty();
     });
 
     const responseInput = document.createElement('input');
@@ -472,6 +510,7 @@ function renderHighLevels() {
     responseInput.value = seg.response_type || '';
     responseInput.addEventListener('change', () => {
       seg.response_type = responseInput.value;
+      markDirty();
     });
 
     const deleteBtn = document.createElement('button');
@@ -479,6 +518,7 @@ function renderHighLevels() {
     deleteBtn.textContent = 'Delete';
     deleteBtn.addEventListener('click', () => {
       ann.high_levels.splice(idx, 1);
+      markDirty();
       renderHighLevels();
     });
 
@@ -631,6 +671,7 @@ connectForm.addEventListener('submit', async (event) => {
     }
     state.dataset = data;
     state.episodes = data.episodes || [];
+    clearDirty();
     setStatus(`Loaded ${data.repo_id || data.root}`, true);
     setHelper(connectHelper, `Loaded ${state.episodes.length} episodes.`, true);
     workspace.style.display = 'grid';
@@ -726,6 +767,7 @@ function addCurrentSubtask() {
   }
   const ann = getEpisodeAnnotations(state.currentEpisode);
   ann.subtasks.push({ start, end, label });
+  markDirty();
   renderSubtasks();
   renderTimeline();
   subtaskLabel.value = '';
@@ -769,6 +811,7 @@ addHighLevel.addEventListener('click', () => {
     scenario_type: hlScenario.value.trim() || null,
     response_type: hlResponse.value.trim() || null,
   });
+  markDirty();
   renderHighLevels();
   hlUser.value = '';
   hlRobot.value = '';
@@ -778,6 +821,7 @@ saveEpisodeBtn.addEventListener('click', () => saveEpisode());
 resetEpisodeBtn.addEventListener('click', () => {
   if (state.currentEpisode == null) return;
   state.annotations[state.currentEpisode] = { subtasks: [], high_levels: [] };
+  markDirty();
   renderSubtasks();
   renderHighLevels();
   renderTimeline();
@@ -840,5 +884,8 @@ if (pushHubBtn) {
   pushHubBtn.addEventListener('click', handlePushToHub);
 } else {
   console.error('[App] pushHubBtn element not found');
+}
+if (topPushHubBtn) {
+  topPushHubBtn.addEventListener('click', handlePushToHub);
 }
 console.log('[App] Script fully loaded and initialized');
