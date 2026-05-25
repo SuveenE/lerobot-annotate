@@ -636,6 +636,10 @@ connectForm.addEventListener('submit', async (event) => {
     workspace.style.display = 'grid';
     populateVideoKeys(data.video_keys, data.selected_video_key);
     renderEpisodes();
+    if (state.episodes.length > 0) {
+      const firstEpisode = state.episodes.find(ep => ep.episode_index === 0) || state.episodes[0];
+      selectEpisode(firstEpisode.episode_index);
+    }
   } catch (err) {
     setStatus('Disconnected');
     setHelper(connectHelper, err.message);
