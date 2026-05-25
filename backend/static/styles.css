@@ -84,6 +84,15 @@ h1 {
   width: 120px;
 }
 
+.connect {
+  padding: 14px 20px;
+}
+
+.connect h2 {
+  font-size: 1rem;
+  margin: 0 0 10px;
+}
+
 .panel {
   background: var(--panel);
   border: 1px solid var(--border);
