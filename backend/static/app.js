@@ -3,39 +3,32 @@ console.log('[App] Script starting...');
 
 function showPushStatus(type, message, url = null) {
   console.log('[Push to Hub] Showing status:', type, message);
-  
-  const statusEl = document.getElementById('pushHubStatus');
-  if (!statusEl) {
-    console.error('[Push to Hub] Status element not found');
-    alert(`${type}: ${message}`);
-    return;
+
+  let toast = document.getElementById('pushHubToast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'pushHubToast';
+    document.body.appendChild(toast);
   }
-  
-  statusEl.className = `helper status-${type}`;
-  
+
+  toast.className = `push-toast push-toast-${type}`;
+
   if (type === 'loading') {
-    statusEl.innerHTML = `<span class="spinner"></span> ${message}`;
+    toast.innerHTML = `<span class="spinner"></span><span>${message}</span>`;
   } else if (type === 'success') {
-    statusEl.innerHTML = `
-      <div class="status-box status-success">
-        <span class="status-icon">✓</span>
-        <div class="status-content">
-          <strong>Success!</strong>
-          <p>${message}</p>
-          ${url ? `<a href="${url}" target="_blank" class="status-link">View on Hugging Face Hub →</a>` : ''}
-        </div>
-      </div>
-    `;
+    const linkHtml = url ? ` <a href="${url}" target="_blank" rel="noopener">View →</a>` : '';
+    toast.innerHTML = `<span class="push-toast-icon">✓</span><span>${message}${linkHtml}</span>`;
   } else if (type === 'error') {
-    statusEl.innerHTML = `
-      <div class="status-box status-error">
-        <span class="status-icon">✗</span>
-        <div class="status-content">
-          <strong>Error</strong>
-          <p>${message}</p>
-        </div>
-      </div>
-    `;
+    toast.innerHTML = `<span class="push-toast-icon">✗</span><span>${message}</span>`;
+  }
+
+  toast.style.display = 'flex';
+
+  clearTimeout(toast._hideTimer);
+  if (type !== 'loading') {
+    toast._hideTimer = setTimeout(() => {
+      toast.style.display = 'none';
+    }, 6000);
   }
 }
 
