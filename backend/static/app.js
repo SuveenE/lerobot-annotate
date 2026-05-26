@@ -255,6 +255,17 @@ function setDatasetInUrl(repoId) {
   const queryString = params.toString();
   const newUrl = `${window.location.pathname}${queryString ? `?${queryString}` : ''}${window.location.hash}`;
   window.history.replaceState({}, '', newUrl);
+
+  // When embedded in a Hugging Face Space iframe, also notify the parent so
+  // the visible browser URL is updated and the link is shareable.
+  // See https://huggingface.co/docs/hub/spaces-handle-url-parameters
+  if (window.parent && window.parent !== window) {
+    try {
+      window.parent.postMessage({ queryString }, 'https://huggingface.co');
+    } catch (err) {
+      console.warn('[App] Failed to postMessage queryString to parent:', err);
+    }
+  }
 }
 
 async function readJsonResponse(res) {
