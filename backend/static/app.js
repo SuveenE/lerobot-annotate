@@ -240,6 +240,23 @@ function setHelper(el, message, ok = false) {
   el.style.color = ok ? '#22c55e' : '#94a3b8';
 }
 
+function getDatasetFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('dataset');
+}
+
+function setDatasetInUrl(repoId) {
+  const params = new URLSearchParams(window.location.search);
+  if (repoId) {
+    params.set('dataset', repoId);
+  } else {
+    params.delete('dataset');
+  }
+  const queryString = params.toString();
+  const newUrl = `${window.location.pathname}${queryString ? `?${queryString}` : ''}${window.location.hash}`;
+  window.history.replaceState({}, '', newUrl);
+}
+
 async function readJsonResponse(res) {
   const text = await res.text();
   if (!text) return {};
@@ -605,14 +622,24 @@ function populateDatasetSelect(datasets) {
 
 async function loadOrganizations() {
   populateOrgSelect([DEFAULT_HF_ORG]);
+  const datasetFromUrl = getDatasetFromUrl();
   try {
     const res = await fetch('/api/hub/orgs');
     const data = await res.json();
     if (!res.ok) {
       throw new Error(data.detail || 'Failed to load organizations');
     }
-    populateOrgSelect(data.orgs || [DEFAULT_HF_ORG], data.default_org || DEFAULT_HF_ORG);
+    const orgs = data.orgs || [DEFAULT_HF_ORG];
+    let selectedOrg = data.default_org || DEFAULT_HF_ORG;
+    if (datasetFromUrl && datasetFromUrl.includes('/')) {
+      selectedOrg = datasetFromUrl.split('/')[0];
+    }
+    populateOrgSelect(orgs, selectedOrg);
     await searchDatasets();
+    if (datasetFromUrl) {
+      repoInput.value = datasetFromUrl;
+      connectForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+    }
   } catch (err) {
     setHelper(connectHelper, err.message);
   }
@@ -672,6 +699,7 @@ connectForm.addEventListener('submit', async (event) => {
     state.dataset = data;
     state.episodes = data.episodes || [];
     clearDirty();
+    setDatasetInUrl(data.repo_id || repoId);
     setStatus(`Loaded ${data.repo_id || data.root}`, true);
     setHelper(connectHelper, `Loaded ${state.episodes.length} episodes.`, true);
     workspace.style.display = 'grid';
